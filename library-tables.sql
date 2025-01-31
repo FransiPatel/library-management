@@ -8,21 +8,23 @@ CREATE TABLE users (
 );
 
 CREATE TABLE books (
-    id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
     description TEXT,
-    author VARCHAR(255) NOT NULL,
     publication VARCHAR(255),
-    cover_image VARCHAR(255)
+    author_name VARCHAR(255) NOT NULL,
+    cover_image VARCHAR(255),
+    PRIMARY KEY (title, author_name),  
+    FOREIGN KEY (author_name) REFERENCES authors(name) ON DELETE CASCADE
+);
+CREATE TABLE authors (
+    name VARCHAR(255) PRIMARY KEY,
+    gender VARCHAR(50)
 );
 
-CREATE TABLE authors (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    gender VARCHAR(10) CHECK (gender IN ('Male', 'Female', 'Other')) NOT NULL
-);
+INSERT INTO books (title, description, publication, author_name, cover_image)
+VALUES ('Harry Potter', 'A book about wizards', '1997-06-26', 'J.K. Rowling', 'path/to/cover.jpg');
+
 
 INSERT INTO users (name, email, password, role, verified) 
 VALUES ('Admin', 'admin@example.com', 'adminpassword', 'admin', TRUE)
 ON CONFLICT (email) DO NOTHING;
-

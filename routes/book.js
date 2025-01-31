@@ -14,9 +14,9 @@ router.get("/books", adminAuth, listBooks);
 router.get("/books/search", adminAuth, searchBooks);
 
 // Update book details (including cover image) - Use title and author instead of id
-router.put("/books/:title/:author", adminAuth, upload.single("coverImage"), updateBook);
+router.put("/books/:title/:author_name", adminAuth, upload.single("coverImage"), updateBook);
 
 // Delete book - Use title and author instead of id
-router.delete("/books/:title/:author", adminAuth, deleteBook);
+router.delete("/books/:title/:author_name", adminAuth, deleteBook);
 
 module.exports = router;

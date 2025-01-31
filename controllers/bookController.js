@@ -15,12 +15,30 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-// Add Book Controller with Duplication Check and Conditional File Upload
 const addBook = async (req, res) => {
     try {
         const { title, description, author_name, publication } = req.body;
 
-        // Check if the book already exists in the database (based on title and author_name)
+        console.log("Received data:", req.body);
+        console.log("Uploaded file:", req.file);
+
+        if (!req.file) {
+            return res.status(400).json({ message: "Cover image is required" });
+        }
+
+        // Validate date format
+        const formattedPublication = new Date(publication);
+        if (isNaN(formattedPublication)) {
+            return res.status(400).json({ message: "Invalid publication date format. Use YYYY-MM-DD." });
+        }
+
+        // Check if the author exists in the authors table
+        const authorExists = await pool.query("SELECT * FROM authors WHERE name = $1", [author_name]);
+        if (authorExists.rows.length === 0) {
+            return res.status(400).json({ message: "Author does not exist. Please add the author first." });
+        }
+
+        // Check if the book already exists
         const existingBook = await pool.query(
             "SELECT * FROM books WHERE title = $1 AND author_name = $2",
             [title, author_name]
@@ -30,18 +48,13 @@ const addBook = async (req, res) => {
             return res.status(409).json({ message: "This book already exists in the database" });
         }
 
-        // Ensure cover image is uploaded if the book does not exist
-        if (!req.file) {
-            return res.status(400).json({ message: "Cover image is required" });
-        }
-
         // Prepare cover image path
         const coverImagePath = path.join("coverpage", req.file.filename);
 
-        // Insert book into PostgreSQL
+        // Insert book
         const result = await pool.query(
             "INSERT INTO books (title, description, author_name, publication, cover_image) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-            [title, description, author_name, publication, coverImagePath]
+            [title, description, author_name, formattedPublication, coverImagePath]
         );
 
         res.status(201).json({
@@ -49,8 +62,8 @@ const addBook = async (req, res) => {
             book: result.rows[0],
         });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Server error" });
+        console.error("Error adding book:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
     }
 };
 
@@ -65,20 +78,40 @@ const listBooks = async (req, res) => {
     }
 };
 
-// Search for books by title or author
 const searchBooks = async (req, res) => {
     try {
-        const { query } = req.query; // Search query
+        const { query } = req.query; // Get search query from request
+
+        // Validate input
+        if (!query || query.trim() === "") {
+            return res.status(400).json({ message: "Search query cannot be empty" });
+        }
+
+        console.log("Received search query:", query);
+
+        // Query database for books matching title or author name
         const result = await pool.query(
-            "SELECT * FROM books WHERE title ILIKE $1 OR author_name ILIKE $1", // Updated to use author_name
-            [`%${query}%`]
+            `SELECT * FROM books WHERE title ILIKE $1 OR author_name ILIKE $1 ORDER BY title ASC`, 
+            [`%${query.trim()}%`]
         );
-        res.status(200).json({ books: result.rows });
+
+        // Check if any results were found
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "No books found matching the search query" });
+        }
+
+        res.status(200).json({ 
+            message: "Books retrieved successfully", 
+            totalResults: result.rows.length,
+            books: result.rows 
+        });
+
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Server error" });
+        console.error("Error searching books:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
     }
 };
+
 
 // Update book details (title, description, author_name, publication, cover image)
 const updateBook = async (req, res) => {

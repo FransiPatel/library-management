@@ -1,20 +1,16 @@
 const express = require("express");
 const router = express.Router();
-const bookController = require("../controllers/bookController");
 const adminAuth = require("../middlewares/auth");
-const { listBooks, searchBooks, updateBook, deleteBook, upload } = require("../controllers/bookController");
+const { listBooks, updateBook, deleteBook, addBook } = require("../controllers/bookController");
 
 // Admin Add Book Route
-router.post("/add-book", adminAuth, bookController.upload.single("coverImage"), bookController.addBook);
+router.post("/add-book", adminAuth, addBook);
 
-// List books
+// List,search,filter books
 router.get("/books", adminAuth, listBooks);
 
-// Search books by title or author
-router.get("/books/search", adminAuth, searchBooks);
-
 // Update book details (including cover image) - Use title and author instead of id
-router.put("/books/:title/:author_name", adminAuth, upload.single("coverImage"), updateBook);
+router.put("/books/:title/:author_name", adminAuth, updateBook);
 
 // Delete book - Use title and author instead of id
 router.delete("/books/:title/:author_name", adminAuth, deleteBook);

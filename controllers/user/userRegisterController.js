@@ -2,7 +2,7 @@ const nodemailer = require("nodemailer");
 const bcrypt = require("bcryptjs");
 const ejs = require("ejs");
 const path = require("path");
-const pool = require("../config/db");
+const { User } = require("../../models");  // Import the User model
 require("dotenv").config();
 
 // Registration Controller
@@ -10,23 +10,25 @@ const registerUser = async (req, res) => {
     try {
         const { username, email, password } = req.body;
 
-        // Check if the user already exists
-        const userExists = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
-        if (userExists.rows.length > 0) {
+        // Check if the user already exists using Sequelize
+        const existingUser = await User.findOne({ where: { email } });
+
+        if (existingUser) {
             return res.status(409).json({ message: "User already exists" });
         }
 
+        // Hash the password before saving
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Store the new user in the database 
-        const result = await pool.query(
-            "INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING *",
-            [username, email, hashedPassword]
-        );
+        // Create a new user in the database
+        const newUser = await User.create({
+            name: username,
+            email: email,
+            password: hashedPassword,
+        });
 
         // Send confirmation email after registration
-        const user = result.rows[0];
-        sendConfirmationEmail(user.email, user.name);
+        sendConfirmationEmail(newUser.email, newUser.name);
 
         res.status(201).json({
             message: "User registered successfully. Please check your email for confirmation.",
@@ -38,7 +40,7 @@ const registerUser = async (req, res) => {
 };
 
 // Function to send confirmation email  
-const sendConfirmationEmail = async (email,username) => {
+const sendConfirmationEmail = async (email, username) => {
     try {
         // Create a transporter object using SMTP (Nodemailer)
         const transporter = nodemailer.createTransport({
@@ -46,14 +48,14 @@ const sendConfirmationEmail = async (email,username) => {
             port: process.env.EMAIL_PORT,
             auth: {
                 user: process.env.AUTH_USER,
-                pass: process.env.AUTH_PASS
-            }
+                pass: process.env.AUTH_PASS,
+            },
         });
 
         // Render the EJS email template
-        const emailTemplate = await ejs.renderFile(path.join(__dirname, '../emailTemplates/confirmationEmail.ejs'), {
+        const emailTemplate = await ejs.renderFile(path.join(__dirname, './views/confirmationEmail.ejs'), {
             email: email,
-            name: username
+            name: username,
         });
 
         // Set up email options

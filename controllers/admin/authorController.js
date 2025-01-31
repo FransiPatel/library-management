@@ -1,4 +1,4 @@
-const pool = require("../config/db"); 
+const pool = require("../../config/db"); 
 
 // Add Author Controller
 const addAuthor = async (req, res) => {

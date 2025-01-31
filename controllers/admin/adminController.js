@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
-const pool = require("../config/db");
-const redisClient = require("../config/redis");
+const pool = require("../../config/db");
+const redisClient = require("../../config/redis");
 require("dotenv").config();
 
 // Admin Login Controller

@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const adminAuth = require("../middlewares/auth");
-const { listBooks, updateBook, deleteBook, addBook } = require("../controllers/bookController");
+const adminAuth = require("../../middlewares/auth");
+const { listBooks, updateBook, deleteBook, addBook } = require("../../controllers/admin/bookController");
 
 // Admin Add Book Route
 router.post("/add-book", adminAuth, addBook);

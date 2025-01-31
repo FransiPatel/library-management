@@ -1,6 +1,6 @@
 const multer = require("multer");
 const path = require("path");
-const pool = require("../config/db");
+const pool = require("../../config/db");
 const fs = require("fs");
 
 // Configure Multer for file storage

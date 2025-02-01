@@ -1,6 +1,6 @@
 const multer = require("multer");
 const path = require("path");
-const pool = require("../../config/db");
+const { Book } = require("../../models"); // Import the Sequelize Book model
 const fs = require("fs");
 
 // Configure Multer for file storage
@@ -15,17 +15,17 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage }).single("coverImage");
 
+// Add Book Controller
 const addBook = async (req, res) => {
     try {
         const { title, description, author_name, publication } = req.body;
 
         // Check if the book already exists
-        const existingBook = await pool.query(
-            "SELECT * FROM books WHERE title = $1 AND author_name = $2",
-            [title, author_name]
-        );
+        const existingBook = await Book.findOne({
+            where: { title, author_name }
+        });
 
-        if (existingBook.rows.length > 0) {
+        if (existingBook) {
             return res.status(409).json({ message: "This book already exists in the database" });
         }
 
@@ -42,14 +42,17 @@ const addBook = async (req, res) => {
             const coverImagePath = path.join("coverpage", req.file.filename);
 
             // Insert book into the database
-            const result = await pool.query(
-                "INSERT INTO books (title, description, author_name, publication, cover_image) VALUES ($1, $2, $3, $4, $5) RETURNING *",
-                [title, description, author_name, new Date(publication), coverImagePath]
-            );
+            const book = await Book.create({
+                title,
+                description,
+                author_name,
+                publication: new Date(publication),
+                cover_image: coverImagePath
+            });
 
             res.status(201).json({
                 message: "Book added successfully",
-                book: result.rows[0],
+                book,
             });
         });
     } catch (error) {
@@ -58,24 +61,23 @@ const addBook = async (req, res) => {
     }
 };
 
-// Update book details (title, description, author_name, publication, cover image)
+// Update Book Controller
 const updateBook = async (req, res) => {
     try {
         const { title, author_name } = req.params;
         const { description, publication } = req.body;
 
         // Find the book in the database
-        const existingBook = await pool.query(
-            "SELECT * FROM books WHERE title = $1 AND author_name = $2",
-            [title, author_name]
-        );
+        const existingBook = await Book.findOne({
+            where: { title, author_name }
+        });
 
-        if (existingBook.rows.length === 0) {
+        if (!existingBook) {
             return res.status(404).json({ message: "Book not found" });
         }
 
         // Store old cover image path
-        let coverImagePath = existingBook.rows[0].cover_image;
+        let coverImagePath = existingBook.cover_image;
 
         // Handle file upload only if a new image is provided
         upload(req, res, async function (err) {
@@ -93,14 +95,15 @@ const updateBook = async (req, res) => {
             }
 
             // Update book in the database
-            const result = await pool.query(
-                "UPDATE books SET description = $1, publication = $2, cover_image = $3 WHERE title = $4 AND author_name = $5 RETURNING *",
-                [description, publication, coverImagePath, title, author_name]
-            );
+            const updatedBook = await existingBook.update({
+                description,
+                publication,
+                cover_image: coverImagePath
+            });
 
             res.status(200).json({
                 message: "Book updated successfully",
-                book: result.rows[0],
+                book: updatedBook,
             });
         });
     } catch (error) {
@@ -109,28 +112,28 @@ const updateBook = async (req, res) => {
     }
 };
 
-// Delete book
+// Delete Book Controller
 const deleteBook = async (req, res) => {
     try {
         const { title, author_name } = req.params; // Get book title and author_name from URL parameters
 
         // Find the book in the database
-        const existingBook = await pool.query(
-            "SELECT * FROM books WHERE title = $1 AND author_name = $2",
-            [title, author_name]
-        );
-        if (existingBook.rows.length === 0) {
+        const existingBook = await Book.findOne({
+            where: { title, author_name }
+        });
+        
+        if (!existingBook) {
             return res.status(404).json({ message: "Book not found" });
         }
 
         // Delete the cover image from the server
-        const coverImagePath = existingBook.rows[0].cover_image;
+        const coverImagePath = existingBook.cover_image;
         if (fs.existsSync(coverImagePath)) {
             fs.unlinkSync(coverImagePath);
         }
 
         // Delete the book from the database
-        await pool.query("DELETE FROM books WHERE title = $1 AND author_name = $2", [title, author_name]);
+        await existingBook.destroy();
 
         res.status(200).json({ message: "Book deleted successfully" });
     } catch (error) {
@@ -139,6 +142,7 @@ const deleteBook = async (req, res) => {
     }
 };
 
+// List Books Controller
 const listBooks = async (req, res) => {
     try {
         let { search, start_date, end_date, page, limit } = req.query;
@@ -148,50 +152,48 @@ const listBooks = async (req, res) => {
         limit = parseInt(limit) || 5;
         const offset = (page - 1) * limit;
 
-        let query = `SELECT * FROM books WHERE 1=1`;
-        let values = [];
-
-        // Search filter (title or author_name)
+        // Build query filters
+        let whereConditions = {};
         if (search) {
-            values.push(`%${search}%`);
-            query += ` AND (title ILIKE $${values.length} OR author_name ILIKE $${values.length})`;
+            whereConditions = {
+                [Op.or]: [
+                    { title: { [Op.iLike]: `%${search}%` } },
+                    { author_name: { [Op.iLike]: `%${search}%` } }
+                ]
+            };
         }
 
-        // Filter by publication date range
         if (start_date) {
-            values.push(start_date);
-            query += ` AND publication >= $${values.length}`;
+            whereConditions.publication = { [Op.gte]: new Date(start_date) };
         }
+
         if (end_date) {
-            values.push(end_date);
-            query += ` AND publication <= $${values.length}`;
+            whereConditions.publication = { [Op.lte]: new Date(end_date) };
         }
 
-        // Add pagination
-        values.push(limit, offset);
-        query += ` ORDER BY publication DESC LIMIT $${values.length - 1} OFFSET $${values.length}`;
+        // Fetch books from database
+        const books = await Book.findAll({
+            where: whereConditions,
+            limit,
+            offset,
+            order: [["publication", "DESC"]]
+        });
 
-        // Fetch books
-        const result = await pool.query(query, values);
-
-        // Get total count of books (for pagination metadata)
-        const countResult = await pool.query("SELECT COUNT(*) FROM books");
-        const totalBooks = parseInt(countResult.rows[0].count);
+        // Get total count of books for pagination metadata
+        const totalBooks = await Book.count({ where: whereConditions });
 
         res.status(200).json({
             message: "Books retrieved successfully",
             totalBooks,
             totalPages: Math.ceil(totalBooks / limit),
             currentPage: page,
-            books: result.rows
+            books,
         });
     } catch (error) {
         console.error("Error listing books:", error);
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };
-
-
 
 module.exports = {
     addBook,

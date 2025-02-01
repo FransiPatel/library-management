@@ -1,4 +1,5 @@
-const pool = require("../../config/db"); 
+const { Author } = require("../../models");
+const { Op } = require("sequelize"); 
 
 // Add Author Controller
 const addAuthor = async (req, res) => {
@@ -6,24 +7,18 @@ const addAuthor = async (req, res) => {
         const { name, gender } = req.body;
 
         // Check if author already exists
-        const existingAuthor = await pool.query(
-            "SELECT * FROM authors WHERE name = $1",
-            [name]
-        );
+        const existingAuthor = await Author.findOne({ where: { name } });
 
-        if (existingAuthor.rows.length > 0) {
+        if (existingAuthor) {
             return res.status(409).json({ message: "Author already exists" });
         }
 
         // Insert new author into the database
-        const result = await pool.query(
-            "INSERT INTO authors (name, gender) VALUES ($1, $2) RETURNING *",
-            [name, gender]
-        );
+        const newAuthor = await Author.create({ name, gender });
 
         res.status(201).json({
             message: "Author added successfully",
-            author: result.rows[0],
+            author: newAuthor,
         });
     } catch (error) {
         console.error(error);
@@ -38,24 +33,19 @@ const updateAuthor = async (req, res) => {
         const { gender } = req.body;
 
         // Check if the author exists
-        const existingAuthor = await pool.query(
-            "SELECT * FROM authors WHERE name = $1",
-            [name]
-        );
+        const existingAuthor = await Author.findOne({ where: { name } });
 
-        if (existingAuthor.rows.length === 0) {
+        if (!existingAuthor) {
             return res.status(404).json({ message: "Author not found" });
         }
 
         // Update author details
-        const result = await pool.query(
-            "UPDATE authors SET gender = $1 WHERE name = $2 RETURNING *",
-            [gender, name]
-        );
+        existingAuthor.gender = gender;
+        await existingAuthor.save();
 
         res.status(200).json({
             message: "Author updated successfully",
-            author: result.rows[0],
+            author: existingAuthor,
         });
     } catch (error) {
         console.error(error);
@@ -66,11 +56,11 @@ const updateAuthor = async (req, res) => {
 // List All Authors Controller
 const listAuthors = async (req, res) => {
     try {
-        const result = await pool.query("SELECT * FROM authors");
+        const authors = await Author.findAll();
 
         res.status(200).json({
             message: "Authors retrieved successfully",
-            authors: result.rows,
+            authors,
         });
     } catch (error) {
         console.error(error);
@@ -84,18 +74,21 @@ const searchAuthor = async (req, res) => {
         const { name } = req.query;
 
         // Search for authors based on name
-        const result = await pool.query(
-            "SELECT * FROM authors WHERE name ILIKE $1",
-            [`%${name}%`]
-        );
+        const authors = await Author.findAll({
+            where: {
+                name: {
+                    [Op.iLike]: `%${name}%`,  // Case-insensitive search
+                },
+            },
+        });
 
-        if (result.rows.length === 0) {
+        if (authors.length === 0) {
             return res.status(404).json({ message: "No authors found" });
         }
 
         res.status(200).json({
             message: "Authors retrieved successfully",
-            authors: result.rows,
+            authors,
         });
     } catch (error) {
         console.error(error);
@@ -109,17 +102,14 @@ const deleteAuthor = async (req, res) => {
         const { name } = req.params;  // Retrieve author name from URL parameter
 
         // Check if the author exists
-        const existingAuthor = await pool.query(
-            "SELECT * FROM authors WHERE name = $1",
-            [name]
-        );
+        const existingAuthor = await Author.findOne({ where: { name } });
 
-        if (existingAuthor.rows.length === 0) {
+        if (!existingAuthor) {
             return res.status(404).json({ message: "Author not found" });
         }
 
         // Delete the author from the database
-        await pool.query("DELETE FROM authors WHERE name = $1", [name]);
+        await existingAuthor.destroy();
 
         res.status(200).json({ message: "Author deleted successfully" });
     } catch (error) {

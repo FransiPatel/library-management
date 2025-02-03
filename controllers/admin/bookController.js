@@ -1,6 +1,7 @@
 const multer = require("multer");
 const path = require("path");
-const { Book } = require("../../models"); // Import the Sequelize Book model
+const { Book } = require("../../models");
+const { Op } = require("sequelize");
 const fs = require("fs");
 
 // Configure Multer for file storage
@@ -12,52 +13,48 @@ const storage = multer.diskStorage({
         cb(null, `${Date.now()}_${file.originalname}`);
     },
 });
+const upload = multer({ storage: storage });
 
-const upload = multer({ storage: storage }).single("coverImage");
 
 // Add Book Controller
 const addBook = async (req, res) => {
     try {
-        const { title, description, author_name, publication } = req.body;
-
-        // Check if the book already exists
+        const { title, description, author, publication } = req.body;
+        // Check if the book already exists in the database (based on title and author)
         const existingBook = await Book.findOne({
-            where: { title, author_name }
+            where: {
+                title: title,
+                author_name: author,
+            },
         });
 
         if (existingBook) {
             return res.status(409).json({ message: "This book already exists in the database" });
         }
 
-        // Now upload file only after book validation
-        upload(req, res, async function (err) {
-            if (err) {
-                return res.status(400).json({ message: "File upload error", error: err.message });
-            }
+        // Ensure cover image is uploaded
+        if (!req.file) {
+            return res.status(400).json({ message: "Cover image is required" });
+        }
 
-            if (!req.file) {
-                return res.status(400).json({ message: "Cover image is required" });
-            }
+        // Prepare cover image path
+        const coverImagePath = path.join("uploads", req.file.filename);
 
-            const coverImagePath = path.join("coverpage", req.file.filename);
+        // Insert book into the database
+        const book = await Book.create({
+            title,
+            description,
+            author_name: author,
+            publication: new Date(publication),
+            cover_image: coverImagePath,
+        });
 
-            // Insert book into the database
-            const book = await Book.create({
-                title,
-                description,
-                author_name,
-                publication: new Date(publication),
-                cover_image: coverImagePath
-            });
-
-            res.status(201).json({
-                message: "Book added successfully",
-                book,
-            });
+        res.status(201).json({
+            message: "Book added successfully",
+            book,
         });
     } catch (error) {
-        console.error("Error adding book:", error);
-        res.status(500).json({ message: "Server error", error: error.message });
+        res.status(500).json({ message: "Server error" });
     }
 };
 
@@ -79,35 +76,29 @@ const updateBook = async (req, res) => {
         // Store old cover image path
         let coverImagePath = existingBook.cover_image;
 
-        // Handle file upload only if a new image is provided
-        upload(req, res, async function (err) {
-            if (err) {
-                return res.status(400).json({ message: "File upload error", error: err.message });
+        // If a new cover image is provided in the request, update the image
+        if (req.file) {
+            // Delete the old cover image if it exists on the server
+            if (fs.existsSync(coverImagePath)) {
+                fs.unlinkSync(coverImagePath);
             }
 
-            if (req.file) {
-                // Delete old cover image from server
-                if (fs.existsSync(coverImagePath)) {
-                    fs.unlinkSync(coverImagePath);
-                }
-                // Set new cover image path
-                coverImagePath = path.join("coverpage", req.file.filename);
-            }
+            // Set the new cover image path
+            coverImagePath = path.join("uploads", req.file.filename);
+        }
 
-            // Update book in the database
-            const updatedBook = await existingBook.update({
-                description,
-                publication,
-                cover_image: coverImagePath
-            });
+        // Update book details in the database
+        const updatedBook = await existingBook.update({
+            description,
+            publication,
+            cover_image: coverImagePath
+        });
 
-            res.status(200).json({
-                message: "Book updated successfully",
-                book: updatedBook,
-            });
+        res.status(200).json({
+            message: "Book updated successfully",
+            book: updatedBook,
         });
     } catch (error) {
-        console.error(error);
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };
@@ -115,13 +106,13 @@ const updateBook = async (req, res) => {
 // Delete Book Controller
 const deleteBook = async (req, res) => {
     try {
-        const { title, author_name } = req.params; // Get book title and author_name from URL parameters
+        // Get book title and author_name from URL parameters
+        const { title, author_name } = req.params; 
 
         // Find the book in the database
         const existingBook = await Book.findOne({
             where: { title, author_name }
         });
-        
         if (!existingBook) {
             return res.status(404).json({ message: "Book not found" });
         }
@@ -134,10 +125,8 @@ const deleteBook = async (req, res) => {
 
         // Delete the book from the database
         await existingBook.destroy();
-
         res.status(200).json({ message: "Book deleted successfully" });
     } catch (error) {
-        console.error(error);
         res.status(500).json({ message: "Server error" });
     }
 };
@@ -152,36 +141,36 @@ const listBooks = async (req, res) => {
         limit = parseInt(limit) || 5;
         const offset = (page - 1) * limit;
 
-        // Build query filters
-        let whereConditions = {};
+        // Build the filters
+        const filters = {};
+
         if (search) {
-            whereConditions = {
-                [Op.or]: [
-                    { title: { [Op.iLike]: `%${search}%` } },
-                    { author_name: { [Op.iLike]: `%${search}%` } }
-                ]
-            };
+            filters[Op.or] = [
+                { title: { [Op.iLike]: `%${search}%` } },
+                { author_name: { [Op.iLike]: `%${search}%` } }
+            ];
         }
 
         if (start_date) {
-            whereConditions.publication = { [Op.gte]: new Date(start_date) };
+            filters.publication = { [Op.gte]: start_date };
         }
-
         if (end_date) {
-            whereConditions.publication = { [Op.lte]: new Date(end_date) };
+            filters.publication = { ...filters.publication, [Op.lte]: end_date };
         }
 
-        // Fetch books from database
+        // Fetch books with filters, pagination, and sorting
         const books = await Book.findAll({
-            where: whereConditions,
-            limit,
-            offset,
-            order: [["publication", "DESC"]]
+            where: filters,
+            limit: limit,
+            offset: offset,
+            order: [['publication', 'DESC']]
         });
 
-        // Get total count of books for pagination metadata
-        const totalBooks = await Book.count({ where: whereConditions });
-
+        // Get the total count of books for pagination
+        const totalBooks = await Book.count({
+            where: filters
+        });
+        
         res.status(200).json({
             message: "Books retrieved successfully",
             totalBooks,
@@ -190,7 +179,6 @@ const listBooks = async (req, res) => {
             books,
         });
     } catch (error) {
-        console.error("Error listing books:", error);
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };

@@ -49,7 +49,6 @@ const listBooks = async (req, res) => {
             books
         });
     } catch (error) {
-        console.error("Error listing books:", error);
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };

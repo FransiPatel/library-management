@@ -2,7 +2,7 @@ const nodemailer = require("nodemailer");
 const bcrypt = require("bcryptjs");
 const ejs = require("ejs");
 const path = require("path");
-const { User } = require("../../models");  // Import the User model
+const { User } = require("../../models"); 
 require("dotenv").config();
 
 // Registration Controller
@@ -12,7 +12,6 @@ const registerUser = async (req, res) => {
 
         // Check if the user already exists using Sequelize
         const existingUser = await User.findOne({ where: { email } });
-
         if (existingUser) {
             return res.status(409).json({ message: "User already exists" });
         }
@@ -29,12 +28,10 @@ const registerUser = async (req, res) => {
 
         // Send confirmation email after registration
         sendConfirmationEmail(newUser.email, newUser.name);
-
         res.status(201).json({
             message: "User registered successfully. Please check your email for confirmation.",
         });
     } catch (error) {
-        console.error(error);
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };
@@ -53,7 +50,7 @@ const sendConfirmationEmail = async (email, username) => {
         });
 
         // Render the EJS email template
-        const emailTemplate = await ejs.renderFile(path.join(__dirname, './views/confirmationEmail.ejs'), {
+        const emailTemplate = await ejs.renderFile(path.join(__dirname, '../../views/confirmationEmail.ejs'), {
             email: email,
             name: username,
         });
@@ -69,13 +66,14 @@ const sendConfirmationEmail = async (email, username) => {
         // Send email
         transporter.sendMail(mailOptions, (error, info) => {
             if (error) {
-                console.log('Error sending email:', error);
+                return res.status(550).json({ message: "Failed to send email", error: error.message });
             } else {
-                console.log('Email sent: ' + info.response);
+                return res.status(200).json({ message: "Email sent successfully", response: info.response });
             }
         });
+        
     } catch (error) {
-        console.error('Error in sending email:', error);
+        res.status(550).json({ message: "Failed to send email", error: error.message })
     }
 };
 

@@ -21,7 +21,6 @@ const addAuthor = async (req, res) => {
             author: newAuthor,
         });
     } catch (error) {
-        console.error(error);
         res.status(500).json({ message: "Server error" });
     }
 };
@@ -34,7 +33,6 @@ const updateAuthor = async (req, res) => {
 
         // Check if the author exists
         const existingAuthor = await Author.findOne({ where: { name } });
-
         if (!existingAuthor) {
             return res.status(404).json({ message: "Author not found" });
         }
@@ -42,13 +40,11 @@ const updateAuthor = async (req, res) => {
         // Update author details
         existingAuthor.gender = gender;
         await existingAuthor.save();
-
         res.status(200).json({
             message: "Author updated successfully",
             author: existingAuthor,
         });
     } catch (error) {
-        console.error(error);
         res.status(500).json({ message: "Server error" });
     }
 };
@@ -63,7 +59,6 @@ const listAuthors = async (req, res) => {
             authors,
         });
     } catch (error) {
-        console.error(error);
         res.status(500).json({ message: "Server error" });
     }
 };
@@ -91,7 +86,6 @@ const searchAuthor = async (req, res) => {
             authors,
         });
     } catch (error) {
-        console.error(error);
         res.status(500).json({ message: "Server error" });
     }
 };
@@ -103,17 +97,14 @@ const deleteAuthor = async (req, res) => {
 
         // Check if the author exists
         const existingAuthor = await Author.findOne({ where: { name } });
-
         if (!existingAuthor) {
             return res.status(404).json({ message: "Author not found" });
         }
 
         // Delete the author from the database
         await existingAuthor.destroy();
-
         res.status(200).json({ message: "Author deleted successfully" });
     } catch (error) {
-        console.error(error);
         res.status(500).json({ message: "Server error" });
     }
 };

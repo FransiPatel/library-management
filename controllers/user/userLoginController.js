@@ -8,7 +8,6 @@ const loginUser = async (req, res) => {
 
         // Find user by email
         const user = await User.findOne({ where: { email, role: "user" } });
-
         if (!user) {
             return res.status(401).json({ message: "Invalid email or password" });
         }
@@ -37,7 +36,6 @@ const loginUser = async (req, res) => {
         });
 
     } catch (error) {
-        console.error("Login error:", error);
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };

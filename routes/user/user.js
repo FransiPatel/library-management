@@ -10,6 +10,7 @@ router.post("/register", userController.registerUser);
 // Login route
 router.post("/login", loginUser);
 
+// List,search,filter books
 router.get("/books", authenticateUser, listBooks);
 
 module.exports = router;

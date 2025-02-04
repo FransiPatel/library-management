@@ -10,6 +10,11 @@ const registerUser = async (req, res) => {
     try {
         const { username, email, password } = req.body;
 
+        // Check if email and password are provided
+        if (!email || !password || !username) {
+            return res.status(400).json({ message: "All fields are required" });
+        }
+
         // Check if the user already exists using Sequelize
         const existingUser = await User.findOne({ where: { email } });
         if (existingUser) {

@@ -8,6 +8,11 @@ const adminLogin = async (req, res) => {
     try {
         const { email, password } = req.body;
 
+        // Check if email and password are provided
+        if (!email || !password) {
+            return res.status(400).json({ message: "Email and password are required" });
+        }
+
         // Fetch Admin from "Users" Table
         const admin = await User.findOne({ where: { email, role: "admin" } });
         if (!admin) {

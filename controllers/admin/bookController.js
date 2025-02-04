@@ -165,7 +165,6 @@ const listBooks = async (req, res) => {
             offset: offset,
             order: [['publication', 'DESC']]
         });
-
         // Get the total count of books for pagination
         const totalBooks = await Book.count({
             where: filters

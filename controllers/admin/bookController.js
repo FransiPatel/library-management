@@ -1,25 +1,57 @@
 const multer = require("multer");
 const path = require("path");
-const { Book } = require("../../models");
+const { Book, Author } = require("../../models");
 const { Op } = require("sequelize");
 const fs = require("fs");
 
-// Configure Multer for file storage
+// Allowed file types
+const allowedMimeTypes = ["image/jpeg", "image/png", "image/jpg"];
+
+// Configure Multer storage
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, "coverpage/");
+        cb(null, "coverpage/"); // Ensure this folder exists
     },
     filename: (req, file, cb) => {
         cb(null, `${Date.now()}_${file.originalname}`);
     },
 });
-const upload = multer({ storage: storage });
 
+// File filter function to validate MIME type
+const fileFilter = (req, file, cb) => {
+    if (allowedMimeTypes.includes(file.mimetype)) {
+        cb(null, true);
+    } else {
+        cb(new Error("Invalid file type. Only JPG, JPEG, and PNG files are allowed."), false);
+    }
+};
+
+// Multer upload configuration
+const upload = multer({
+    storage,
+    limits: { fileSize: 2 * 1024 * 1024 },
+    fileFilter,
+}).single("coverImage");
 
 // Add Book Controller
 const addBook = async (req, res) => {
     try {
         const { title, description, author, publication } = req.body;
+
+        // Check if the author exists in the database
+        let authorRecord = await Author.findOne({
+            where: {
+                name: author,  // Assuming 'name' is the field for author
+            },
+        });
+
+        // If the author doesn't exist, create a new author
+        if (!authorRecord) {
+            authorRecord = await Author.create({
+                name: author,  // Assuming the Author model has a 'name' field
+            });
+        }
+
         // Check if the book already exists in the database (based on title and author)
         const existingBook = await Book.findOne({
             where: {
@@ -44,7 +76,7 @@ const addBook = async (req, res) => {
         const book = await Book.create({
             title,
             description,
-            author_name: author,
+            author_name: author,  // Linking the author name
             publication: new Date(publication),
             cover_image: coverImagePath,
         });
@@ -54,9 +86,10 @@ const addBook = async (req, res) => {
             book,
         });
     } catch (error) {
-        res.status(500).json({ message: "Server error" });
+        res.status(500).json({ message: "Server error", error: error.message });
     }
 };
+
 
 // Update Book Controller
 const updateBook = async (req, res) => {
@@ -84,7 +117,7 @@ const updateBook = async (req, res) => {
             }
 
             // Set the new cover image path
-            coverImagePath = path.join("uploads", req.file.filename);
+            coverImagePath = path.join("coverpage", req.file.filename);
         }
 
         // Update book details in the database

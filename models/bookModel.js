@@ -8,7 +8,7 @@ module.exports = (sequelize, DataTypes) => {
     });
   
     Book.associate = (models) => {
-      Book.belongsTo(models.Author, { foreignKey: "author_name", onDelete: "CASCADE" });
+      Book.belongsTo(models.Author, { foreignKey: "author_name", onDelete: "SET NULL" });
     };
   
     return Book;

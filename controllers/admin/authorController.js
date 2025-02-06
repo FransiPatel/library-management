@@ -34,7 +34,7 @@ const updateAuthor = async (req, res) => {
         // Check if the author exists
         const existingAuthor = await Author.findOne({ where: { name } });
         if (!existingAuthor) {
-            return res.status(404).json({ message: "Author not found" });
+            return res.status(400).json({ message: "Author not found" });
         }
 
         // Update author details

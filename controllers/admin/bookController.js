@@ -38,17 +38,20 @@ const addBook = async (req, res) => {
     try {
         const { title, description, author, publication } = req.body;
 
+        // Set author to "Unknown" if it's not provided
+        const authorName = author || "Unknown";
+
         // Check if the author exists in the database
         let authorRecord = await Author.findOne({
             where: {
-                name: author,  // Assuming 'name' is the field for author
+                name: authorName,  // Check for provided or default author
             },
         });
 
         // If the author doesn't exist, create a new author
         if (!authorRecord) {
             authorRecord = await Author.create({
-                name: author,  // Assuming the Author model has a 'name' field
+                name: authorName,  // Create new author
             });
         }
 
@@ -56,7 +59,7 @@ const addBook = async (req, res) => {
         const existingBook = await Book.findOne({
             where: {
                 title: title,
-                author_name: author,
+                author_name: authorName,
             },
         });
 
@@ -76,7 +79,7 @@ const addBook = async (req, res) => {
         const book = await Book.create({
             title,
             description,
-            author_name: author,  // Linking the author name
+            author_name: authorName,  // Set the author_name (defaults to "Unknown")
             publication: new Date(publication),
             cover_image: coverImagePath,
         });
@@ -95,7 +98,10 @@ const addBook = async (req, res) => {
 const updateBook = async (req, res) => {
     try {
         const { title, author_name } = req.params;
-        const { description, publication } = req.body;
+        const { description, publication, author } = req.body;
+
+        // Set author to "Unknown" if not provided
+        const authorName = author || "Unknown";
 
         // Find the book in the database
         const existingBook = await Book.findOne({
@@ -124,6 +130,7 @@ const updateBook = async (req, res) => {
         const updatedBook = await existingBook.update({
             description,
             publication,
+            author_name: authorName,  // Ensure author_name is updated (defaults to "Unknown")
             cover_image: coverImagePath
         });
 
@@ -135,6 +142,7 @@ const updateBook = async (req, res) => {
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };
+
 
 // Delete Book Controller
 const deleteBook = async (req, res) => {

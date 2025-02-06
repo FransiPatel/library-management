@@ -10,7 +10,7 @@ const allowedMimeTypes = ["image/jpeg", "image/png", "image/jpg"];
 // Configure Multer storage
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, "coverpage/"); // Ensure this folder exists
+        cb(null, "coverpage/");
     },
     filename: (req, file, cb) => {
         cb(null, `${Date.now()}_${file.originalname}`);
@@ -37,21 +37,19 @@ const upload = multer({
 const addBook = async (req, res) => {
     try {
         const { title, description, author, publication } = req.body;
-
         // Set author to "Unknown" if it's not provided
         const authorName = author || "Unknown";
-
         // Check if the author exists in the database
         let authorRecord = await Author.findOne({
             where: {
-                name: authorName,  // Check for provided or default author
+                name: authorName, 
             },
         });
 
         // If the author doesn't exist, create a new author
         if (!authorRecord) {
             authorRecord = await Author.create({
-                name: authorName,  // Create new author
+                name: authorName,  
             });
         }
 
@@ -62,7 +60,6 @@ const addBook = async (req, res) => {
                 author_name: authorName,
             },
         });
-
         if (existingBook) {
             return res.status(409).json({ message: "This book already exists in the database" });
         }
@@ -71,7 +68,6 @@ const addBook = async (req, res) => {
         if (!req.file) {
             return res.status(400).json({ message: "Cover image is required" });
         }
-
         // Prepare cover image path
         const coverImagePath = path.join("uploads", req.file.filename);
 
@@ -79,11 +75,10 @@ const addBook = async (req, res) => {
         const book = await Book.create({
             title,
             description,
-            author_name: authorName,  // Set the author_name (defaults to "Unknown")
+            author_name: authorName, 
             publication: new Date(publication),
             cover_image: coverImagePath,
         });
-
         res.status(201).json({
             message: "Book added successfully",
             book,
@@ -130,7 +125,7 @@ const updateBook = async (req, res) => {
         const updatedBook = await existingBook.update({
             description,
             publication,
-            author_name: authorName,  // Ensure author_name is updated (defaults to "Unknown")
+            author_name: authorName,  
             cover_image: coverImagePath
         });
 

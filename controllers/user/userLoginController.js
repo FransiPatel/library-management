@@ -1,26 +1,22 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { User } = require("../../models");
+const validator = require("validator");
 
 const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        // Check if email and password are provided
-        if (!email || !password) {
-            return res.status(400).json({ message: "Email and password are required" });
-        }
-
         // Find user by email
         const user = await User.findOne({ where: { email, role: "user" } });
         if (!user) {
-            return res.status(401).json({ message: "Invalid email or password" });
+            return res.status(400).json({ message: "Invalid email or password" });
         }
 
         // Compare password
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
-            return res.status(401).json({ message: "Invalid email or password" });
+            return res.status(400).json({ message: "Invalid email or password" });
         }
 
         // Generate JWT Token
@@ -30,18 +26,10 @@ const loginUser = async (req, res) => {
             { expiresIn: "1h" }
         );
 
-        res.status(200).json({
-            message: "Login successful",
-            token,
-            user: {
-                id: user.id,
-                username: user.name,
-                email: user.email,
-            }
-        });
+        res.status(200).json({ message: "Login successful", token });
 
     } catch (error) {
-        res.status(500).json({ message: "Server error", error: error.message });
+        res.status(500).json({ message: "Server error" });
     }
 };
 

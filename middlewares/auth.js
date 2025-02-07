@@ -11,12 +11,12 @@ const adminAuth = async (req, res, next) => {
         if (decoded.role !== "admin") return res.status(403).json({ message: "Forbidden" });
 
         const redisToken = await redisClient.get(`admin_${decoded.id}_token`);
-        if (!redisToken || redisToken !== token) return res.status(440).json({ message: "Session expired. Please log in again." });
+        if (!redisToken || redisToken !== token) return res.status(401).json({ message: "Session expired. Please log in again." });
 
         req.admin = decoded; // Attach admin info to request
         next();
     } catch (error) {
-        res.status(498).json({ message: "Invalid token" });
+        res.status(401).json({ message: "Invalid token" });
     }
 };
 

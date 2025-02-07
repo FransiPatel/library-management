@@ -13,12 +13,12 @@ const sequelize = new Sequelize(
     }
 );
 
-const User = require("./userModel")(sequelize, DataTypes);
-const Book = require("./bookModel")(sequelize, DataTypes);
-const Author = require("./authorModel")(sequelize, DataTypes);
+const User = require("./user")(sequelize, DataTypes);
+const Book = require("./book")(sequelize, DataTypes);
+const Author = require("./author")(sequelize, DataTypes);
 
 // Define associations
-Author.hasMany(Book, { foreignKey: "author_name" });
-Book.belongsTo(Author, { foreignKey: "author_name" });
+Author.hasMany(Book, { foreignKey: "author_id" });
+Book.belongsTo(Author, { foreignKey: "author_id" });
 
 module.exports = { sequelize, Sequelize, User, Book, Author };

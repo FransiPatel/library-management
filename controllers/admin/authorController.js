@@ -1,131 +1,119 @@
 const { Author, Book } = require("../../models");
-const { Op } = require("sequelize"); 
+const { Op } = require("sequelize");
+const validator = require("validator");
 
-// Add Author Controller
+// Add Author API
 const addAuthor = async (req, res) => {
     try {
         const { name, gender } = req.body;
 
-        // Check if author already exists
-        const existingAuthor = await Author.findOne({ where: { name } });
-
-        if (existingAuthor) {
-            return res.status(409).json({ message: "Author already exists" });
+        // Validate input
+        if (!name || !gender) {
+            return res.status(400).json({ message: "Name and gender are required" });
+        }
+        if (!validator.isAlpha(name.replace(/\s/g, ""))) {
+            return res.status(400).json({ message: "Name must contain only letters" });
+        }
+        if (!["male", "female", "other"].includes(gender.toLowerCase())) {
+            return res.status(400).json({ message: "Gender must be 'male', 'female', or 'other'" });
         }
 
-        // Insert new author into the database
         const newAuthor = await Author.create({ name, gender });
-
-        res.status(201).json({
-            message: "Author added successfully",
-            author: newAuthor,
-        });
+        res.status(200).json({ message: "Author added successfully", author: newAuthor });
     } catch (error) {
         res.status(500).json({ message: "Server error" });
     }
 };
 
-// Update Author Controller
+// Update Author API
 const updateAuthor = async (req, res) => {
     try {
-        const { name } = req.params;  // Retrieve author name from URL parameter
-        const { gender } = req.body;
+        const { id } = req.params;
+        const { name, gender } = req.body;
 
-        // Check if the author exists
-        const existingAuthor = await Author.findOne({ where: { name } });
-        if (!existingAuthor) {
-            return res.status(400).json({ message: "Author not found" });
+        // Validate input
+        if (name && !validator.isAlpha(name.replace(/\s/g, ""))) {
+            return res.status(400).json({ message: "Name must contain only letters" });
         }
+        if (gender && !["male", "female", "other"].includes(gender.toLowerCase())) {
+            return res.status(400).json({ message: "Gender must be 'male', 'female', or 'other'" });
+        }
+        const author = await Author.findByPk(id);
+        if (!author) return res.status(400).json({ message: "Author not found" });
 
-        // Update author details
-        existingAuthor.gender = gender;
-        await existingAuthor.save();
-        res.status(200).json({
-            message: "Author updated successfully",
-            author: existingAuthor,
-        });
+        if (name) author.name = name;
+        if (gender) author.gender = gender;
+
+        await author.save();
+        res.status(200).json({ message: "Author updated successfully", author });
     } catch (error) {
         res.status(500).json({ message: "Server error" });
     }
 };
 
-// List All Authors Controller
+// List All Authors API
 const listAuthors = async (req, res) => {
     try {
-        const authors = await Author.findAll();
+        let { name, page, limit } = req.query;
 
-        res.status(200).json({
-            message: "Authors retrieved successfully",
-            authors,
-        });
-    } catch (error) {
-        res.status(500).json({ message: "Server error" });
-    }
-};
+        // Default pagination values
+        page = validator.isInt(page, { min: 1 }) ? parseInt(page) : 1;
+        limit = validator.isInt(limit, { min: 1 }) ? parseInt(limit) : 5;
+        const offset = (page - 1) * limit;
 
-// Search Author Controller
-const searchAuthor = async (req, res) => {
-    try {
-        const { name } = req.query;
+        // Build filters
+        const filters = {};
+        if (name) {
+            filters.name = { [Op.iLike]: `%${name}%` };
+        }
 
-        // Search for authors based on name
+        // Fetch authors with filters and pagination
         const authors = await Author.findAll({
-            where: {
-                name: {
-                    [Op.iLike]: `%${name}%`,  // Case-insensitive search
-                },
-            },
+            where: filters,
+            limit,
+            offset,
+            order: [["name", "ASC"]], // Sorted by name
         });
 
         if (authors.length === 0) {
-            return res.status(404).json({ message: "No authors found" });
+            return res.status(400).json({ message: "No authors found" });
         }
 
-        res.status(200).json({
-            message: "Authors retrieved successfully",
-            authors,
-        });
+        res.status(200).json({ message: "Authors retrieved successfully", authors });
     } catch (error) {
         res.status(500).json({ message: "Server error" });
     }
 };
 
-// Delete Author Controller
+// Delete Author API
 const deleteAuthor = async (req, res) => {
     try {
-        const { name } = req.params;  // Retrieve author name from URL parameter
+        const { id } = req.params;
 
-        // Check if the author exists
-        const existingAuthor = await Author.findOne({ where: { name } });
-        if (!existingAuthor) {
-            return res.status(404).json({ message: "Author not found" });
+        // Validate UUID
+        if (!validator.isUUID(id)) {
+            return res.status(400).json({ message: "Invalid author ID" });
         }
+        // Find the author (including soft-deleted ones if needed)
+        const author = await Author.findByPk(id);
+        if (!author) return res.status(404).json({ message: "Author not found" });
 
-        // Ensure that "Unknown" exists as an author
-        let unknownAuthor = await Author.findOne({ where: { name: "Unknown" } });
-        if (!unknownAuthor) {
-            unknownAuthor = await Author.create({ name: "Unknown" });
-        }
+        // Soft delete books associated with this author (if books should also be soft deleted)
+        await Book.destroy({ where: { author_id: author.id } });
 
-        // Update all books by this author to have "Unknown" as the author
-        await Book.update(
-            { author_name: "Unknown" },  // Set the author_name to "Unknown"
-            { where: { author_name: name } }  // Find books with the given author name
-        );
+        // Soft delete the author
+        await author.destroy(); 
 
-        // Now delete the author from the database
-        await existingAuthor.destroy();
-
-        res.status(200).json({ message: "Author deleted successfully" });
+        res.status(200).json({ message: "Author soft deleted successfully" });
     } catch (error) {
-        res.status(500).json({ message: "Server error", error: error.message });
+        res.status(500).json({ message: "Server error" });
     }
 };
+
 
 module.exports = {
     addAuthor,
     updateAuthor,
     listAuthors,
-    searchAuthor,
     deleteAuthor,
 };

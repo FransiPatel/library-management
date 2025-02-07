@@ -1,20 +1,18 @@
 const express = require("express");
 const router = express.Router();
-const authorController = require("../../controllers/admin/authorController");
+const { authorController } = require("../../controllers/admin");
+
 const adminAuth = require("../../middlewares/auth");
 
 router.post("/add-author", adminAuth, authorController.addAuthor);
 
 // Update author details using name
-router.put("/authors/:name", adminAuth, authorController.updateAuthor);
+router.put("/authors/:id", adminAuth, authorController.updateAuthor);
 
-// List all authors
+// List, search all authors
 router.get("/authors", adminAuth, authorController.listAuthors);
 
-// Search authors by name
-router.get("/authors/search", adminAuth, authorController.searchAuthor);
-
 // Delete author using name
-router.delete("/authors/:name", adminAuth, authorController.deleteAuthor);
+router.delete("/authors/:id", adminAuth, authorController.deleteAuthor);
 
 module.exports = router;

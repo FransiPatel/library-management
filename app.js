@@ -1,9 +1,8 @@
 const express = require("express");
-const adminRoutes = require("./routes/admin/admin");
-const bookRoutes = require("./routes/admin/book");
-const authorRoutes = require("./routes/admin/author");
-const userRoutes = require("./routes/user/user");
-const bodyParser=require('body-parser');
+const adminRoutes = require("./routes/admin");
+const userRoutes = require("./routes/user");
+
+const bodyParser = require("body-parser");
 
 require("dotenv").config();
 const { sequelize } = require("./models");
@@ -14,19 +13,19 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Admin Routes
 app.use("/admin", adminRoutes);
-app.use("/admin", bookRoutes);
-app.use("/admin", authorRoutes);
 
 // User Routes
-app.use("/", userRoutes);
+app.use("/user", userRoutes);
 
-// Sync Database and Start Server
 const PORT = process.env.PORT || 3000;
 sequelize
     .sync() // Sync models with database
     .then(() => {
+        console.log("Database connected and models synced");
         app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-    })
-    .catch((error) => {
+    } catch (error) {
         console.error("Database connection failed:", error);
-    });
+    }
+};
+// Start the server
+startServer();

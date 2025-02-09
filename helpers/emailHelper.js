@@ -33,7 +33,7 @@ const sendConfirmationEmail = async (email, username) => {
         const info = await transporter.sendMail(mailOptions);
         return { success: true, message: "Email sent successfully", response: info.response };
     } catch (error) {
-        return { success: false, message: "Failed to send email", error: error.message };
+        return { success: false, message: "Failed to send email" };
     }
 };
 

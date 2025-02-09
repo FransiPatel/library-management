@@ -10,7 +10,7 @@ const addBook = async (req, res) => {
 
         // Validate input
         if (!title || !description || !author_id || !publication) {
-            return res.status(400).json({ message: "All fields are required" });
+            return res.status(400).json({ message: "title, description, author_id, publication are required" });
         }
         if (!validator.isDate(publication)) {
             return res.status(400).json({ message: "Invalid publication date" });
@@ -90,7 +90,7 @@ const deleteBook = async (req, res) => {
         // Soft delete the book
         await book.destroy();
 
-        res.status(200).json({ message: "Book soft deleted successfully" });
+        res.status(200).json({ message: "Book deleted successfully" });
     } catch (error) {
         res.status(500).json({ message: "Server error" });
     }
@@ -102,12 +102,14 @@ const listBooks = async (req, res) => {
         let { search, start_date, end_date, page, limit } = req.query;
 
         // Validate pagination
-        page = validator.isInt(page, { min: 1 }) ? parseInt(page) : 1;
-        limit = validator.isInt(limit, { min: 1 }) ? parseInt(limit) : 5;
+        page = page && validator.isInt(page, { min: 1 }) ? parseInt(page) : 1;
+        limit = limit && validator.isInt(limit, { min: 1 }) ? parseInt(limit) : 5;
         const offset = (page - 1) * limit;
 
         const filters = {};
-        if (search) filters.title = { [Op.iLike]: `%${search}%` };
+        if (search) {
+            filters.title = { [Op.iLike]: `%${search}%` };
+        }
 
         if (start_date && end_date) {
             filters.publication = {
@@ -124,11 +126,13 @@ const listBooks = async (req, res) => {
             offset,
             order: [["publication", "DESC"]],
         });
+
         res.status(200).json({ message: "Books retrieved successfully", books });
     } catch (error) {
-        res.status(500).json({ message: "Server error" });
+        res.status(500).json({ message: "Server error", error: error.message });
     }
 };
+
 
 module.exports = {
     addBook,

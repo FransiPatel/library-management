@@ -8,8 +8,8 @@ const listBooks = async (req, res) => {
         let { search, start_date, end_date, page, limit } = req.query;
 
         // Validate pagination
-                page = validator.isInt(page, { min: 1 }) ? parseInt(page) : 1;
-                limit = validator.isInt(limit, { min: 1 }) ? parseInt(limit) : 5;
+                page = page && validator.isInt(page, { min: 1 }) ? parseInt(page) : 1;
+                limit = limit && validator.isInt(limit, { min: 1 }) ? parseInt(limit) : 5;
                 const offset = (page - 1) * limit;
         
                 const filters = {};

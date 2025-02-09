@@ -56,9 +56,9 @@ const listAuthors = async (req, res) => {
     try {
         let { name, page, limit } = req.query;
 
-        // Default pagination values
-        page = validator.isInt(page, { min: 1 }) ? parseInt(page) : 1;
-        limit = validator.isInt(limit, { min: 1 }) ? parseInt(limit) : 5;
+        // Validate and set default pagination values
+        page = page && validator.isInt(page, { min: 1 }) ? parseInt(page) : 1;
+        limit = limit && validator.isInt(limit, { min: 1 }) ? parseInt(limit) : 5;
         const offset = (page - 1) * limit;
 
         // Build filters
@@ -104,7 +104,7 @@ const deleteAuthor = async (req, res) => {
         // Soft delete the author
         await author.destroy(); 
 
-        res.status(200).json({ message: "Author soft deleted successfully" });
+        res.status(200).json({ message: "Author deleted successfully" });
     } catch (error) {
         res.status(500).json({ message: "Server error" });
     }

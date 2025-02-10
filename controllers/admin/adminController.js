@@ -2,7 +2,6 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const { User } = require("../../models"); 
 const redisClient = require("../../config/redis");
-const validator = require("validator");
 require("dotenv").config();
 
 const adminLogin = async (req, res) => {

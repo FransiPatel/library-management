@@ -82,7 +82,7 @@ const deleteBook = async (req, res) => {
         }
 
         const book = await Book.findByPk(id);
-        if (!book) return res.status(404).json({ message: "Book not found" });
+        if (!book) return res.status(400).json({ message: "Book not found" });
 
         // delete book cover image
         if (fs.existsSync(book.cover_image)) fs.unlinkSync(book.cover_image);

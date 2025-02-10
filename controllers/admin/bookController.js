@@ -102,8 +102,8 @@ const listBooks = async (req, res) => {
         let { search, start_date, end_date, page, limit } = req.query;
 
         // Validate pagination
-        page = page && validator.isInt(page, { min: 1 }) ? parseInt(page) : 1;
-        limit = limit && validator.isInt(limit, { min: 1 }) ? parseInt(limit) : 5;
+        page = parseInt(page) || 1;
+        limit = parseInt(limit) || 5;
         const offset = (page - 1) * limit;
 
         const filters = {};
@@ -127,7 +127,16 @@ const listBooks = async (req, res) => {
             order: [["publication", "DESC"]],
         });
 
-        res.status(200).json({ message: "Books retrieved successfully", books });
+        const totalCount = await Book.count({ where: filters });
+            if (books.length === 0) {
+                return res.status(400).json({ message: "No books found" });
+            }
+            const data = {
+                totalCount,
+                books,
+            };
+        
+        res.status(200).json({ message: "Books retrieved successfully", data });
     } catch (error) {
         res.status(500).json({ message: "Server error" });
     }

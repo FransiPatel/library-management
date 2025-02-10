@@ -14,11 +14,14 @@ const addAuthor = async (req, res) => {
         if (!validator.isAlpha(name.replace(/\s/g, ""))) {
             return res.status(400).json({ message: "Name must contain only letters" });
         }
-        if (!["male", "female", "other"].includes(gender.toLowerCase())) {
+
+        // Convert gender to lowercase and validate
+        const formattedGender = gender.toLowerCase();
+        if (!["male", "female", "other"].includes(formattedGender)) {
             return res.status(400).json({ message: "Gender must be 'male', 'female', or 'other'" });
         }
 
-        const newAuthor = await Author.create({ name, gender });
+        const newAuthor = await Author.create({ name, gender: formattedGender });
         res.status(200).json({ message: "Author added successfully", author: newAuthor });
     } catch (error) {
         res.status(500).json({ message: "Server error" });
@@ -35,14 +38,18 @@ const updateAuthor = async (req, res) => {
         if (name && !validator.isAlpha(name.replace(/\s/g, ""))) {
             return res.status(400).json({ message: "Name must contain only letters" });
         }
-        if (gender && !["male", "female", "other"].includes(gender.toLowerCase())) {
+
+        // Convert gender to lowercase and validate
+        let formattedGender = gender ? gender.toLowerCase() : null;
+        if (formattedGender && !["male", "female", "other"].includes(formattedGender)) {
             return res.status(400).json({ message: "Gender must be 'male', 'female', or 'other'" });
         }
+
         const author = await Author.findByPk(id);
         if (!author) return res.status(400).json({ message: "Author not found" });
 
         if (name) author.name = name;
-        if (gender) author.gender = gender;
+        if (formattedGender) author.gender = formattedGender;
 
         await author.save();
         res.status(200).json({ message: "Author updated successfully", author });
@@ -57,8 +64,8 @@ const listAuthors = async (req, res) => {
         let { name, page, limit } = req.query;
 
         // Validate and set default pagination values
-        page = page && validator.isInt(page, { min: 1 }) ? parseInt(page) : 1;
-        limit = limit && validator.isInt(limit, { min: 1 }) ? parseInt(limit) : 5;
+        page = parseInt(page) || 1;
+        limit = parseInt(limit) || 5;
         const offset = (page - 1) * limit;
 
         // Build filters
@@ -75,11 +82,17 @@ const listAuthors = async (req, res) => {
             order: [["name", "ASC"]], // Sorted by name
         });
 
+        const totalCount = await Author.count({ where: filters });
+
         if (authors.length === 0) {
             return res.status(400).json({ message: "No authors found" });
         }
+        const data = {
+            totalCount,
+            authors,
+        };
 
-        res.status(200).json({ message: "Authors retrieved successfully", authors });
+        res.status(200).json({ message: "Authors retrieved successfully", data });
     } catch (error) {
         res.status(500).json({ message: "Server error" });
     }
@@ -96,7 +109,7 @@ const deleteAuthor = async (req, res) => {
         }
         // Find the author (including soft-deleted ones if needed)
         const author = await Author.findByPk(id);
-        if (!author) return res.status(404).json({ message: "Author not found" });
+        if (!author) return res.status(400).json({ message: "Author not found" });
 
         // Soft delete books associated with this author (if books should also be soft deleted)
         await Book.destroy({ where: { author_id: author.id } });

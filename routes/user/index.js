@@ -6,8 +6,8 @@ const registerRoutes = require("./userRegister");
 const router = express.Router();
 
 // Combine all user-related routes
-router.use("/", registerRoutes);
-router.use("/", loginRoutes);
-router.use("/", bookRoutes);
+router.use("/register", registerRoutes);
+router.use("/auth", loginRoutes);
+router.use("/book", bookRoutes);
 
 module.exports = router;

@@ -14,9 +14,19 @@ const registerUser = async (req, res) => {
             return res.status(400).json({ message: "Invalid email format" });
         }
 
-        // Validate password (min 6 characters, at least one number and one special character)
-        if (!validator.isLength(password, { min: 6 })) {
-            return res.status(400).json({ message: "Password must be at least 6 characters long" });
+        // Validate strong password
+        if (
+            !validator.isStrongPassword(password, {
+                minLength: 6,
+                minLowercase: 1,
+                minUppercase: 1,
+                minNumbers: 1,
+                minSymbols: 1,
+            })
+        ) {
+            return res.status(400).json({
+                message: "Password must be at least 6 characters long, include at least one uppercase letter, one lowercase letter, one number, and one special character.",
+            });
         }
 
         // Check if the user already exists using Sequelize

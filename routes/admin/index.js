@@ -6,8 +6,8 @@ const bookRoutes = require("./book");
 const router = express.Router();
 
 // Combine all admin-related routes
-router.use("/", adminRoutes);
-router.use("/", authorRoutes);
-router.use("/", bookRoutes);
+router.use("/auth", adminRoutes);
+router.use("/author", authorRoutes);
+router.use("/book", bookRoutes);
 
 module.exports = router;
